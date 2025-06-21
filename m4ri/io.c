@@ -299,8 +299,8 @@ mzd_t *mzd_from_jcf(const char *fn, int verbose) {
   FILE *fh   = fopen(fn, "r");
 
   rci_t m, n;
-  long p       = 0;
-  long nonzero = 0;
+  intptr_t p       = 0;
+  intptr_t nonzero = 0;
 
   if (!fh) {
     if (verbose) printf("Could not open file '%s' for reading\n", fn);
@@ -326,8 +326,8 @@ mzd_t *mzd_from_jcf(const char *fn, int verbose) {
 
   A = mzd_init(m, n);
 
-  long i = -1;
-  long j = 0;
+  intptr_t i = -1;
+  intptr_t j = 0;
 
   while (fscanf(fh, "%ld\n", &j) == 1) {
     if (j < 0) { i++, j = -j; }
