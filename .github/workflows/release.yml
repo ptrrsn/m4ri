@@ -9,9 +9,11 @@ env:
   JOBS: 2
     
 jobs:
-  build:
-    name: Upload Release Asset
+  linux:
+    name: Upload Release Asset (Linux)
     runs-on: ubuntu-latest
+    outputs:
+      upload_url: ${{ steps.create_release.outputs.upload_url }}
     steps:
       - name: Check out
         uses: actions/checkout@v4
@@ -52,6 +54,56 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ${{ env.ARTIFACT_PATHNAME }}
+          asset_name: ${{ env.ARTIFACT_NAME }}
+          asset_content_type: application/gzip
+
+  windows:
+    name: Upload Release Asset (Windows)
+    runs-on: windows-latest
+    needs: linux
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+      - name: Install prerequisites
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: >-
+            mingw-w64-x86_64-gcc
+            mingw-w64-x86_64-autotools
+            mingw-w64-x86_64-libtool
+            mingw-w64-x86_64-pkg-config
+            autoconf
+            automake
+            make
+      - name: Configure
+        run: |
+          autoreconf -i
+          ./configure
+      - name: Compile
+        run: make -j $JOBS
+      - name: Distcheck
+        run: make -j $JOBS distcheck
+      - name: Dist
+        run: make -j $JOBS dist
+      - name: Get name of artifact
+        run: |
+          ARTIFACT_PATHNAME=$(ls m4ri-*.tar.gz | head -n 1)
+          ARTIFACT_NAME=$(basename $ARTIFACT_PATHNAME .tar.gz)-windows.tar.gz
+          echo "ARTIFACT_NAME=${ARTIFACT_NAME}" >> $GITHUB_ENV
+          echo "ARTIFACT_PATHNAME=${ARTIFACT_PATHNAME}" >> $GITHUB_ENV
+      - name: Upload release asset
+        id: upload-release-asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.linux.outputs.upload_url }}
           asset_path: ${{ env.ARTIFACT_PATHNAME }}
           asset_name: ${{ env.ARTIFACT_NAME }}
           asset_content_type: application/gzip
